@@ -1,5 +1,4 @@
-# Thesis analysis code
-# Analysis code
+# Thesis Analysis Code
 
 **Removal of EU Trade Protection on Chinese Solar Panels: Firm Exit, Market Structure and Deployment**
 Josef Gmür, MA Thesis, University of St. Gallen
