@@ -1,16 +1,14 @@
 # =============================================================================
-# Code for:
+# Analysis code for:
 #   "Removal of EU Trade Protection on Chinese Solar Panels:
 #    Firm Exit, Market Structure and Deployment"
 #   Josef Gmür, MA Thesis, University of St. Gallen
 #
-# Reproduces every table, figure and in-text number in the thesis.
-# Run from the replication folder:  source("replication.R")
-# See README.md for data, requirements and runtime.
+# Builds the data and produces every table, figure and in-text number in
+# the thesis. Run from this folder:  source("analysis.R")
+# See README.md for data sources, requirements and runtime.
 # =============================================================================
 
-setwd("C:/1_thesisdata")
-source("analysis.R")
 
 # =============================================================================
 # 0. SETUP
@@ -213,7 +211,7 @@ exposure_comext <- comext_raw %>% left_join(prod_only, by = c("iso3", "year")) %
   summarise(exposure_world = mean(w, na.rm = TRUE), exposure_extraeu = mean(xe, na.rm = TRUE), .groups = "drop")
 
 # --- 2.3 Country-year panel: controls + capacity (Sections 3.3-3.4) ------
-eu_geo <- function(df) df %>% mutate(iso3 = countrycode(geo, "eurostat", "iso3c")) %>% filter(iso3 %in% COUNTRIES)
+eu_geo <- function(df) df %>% mutate(iso3 = suppressWarnings(countrycode(geo, "eurostat", "iso3c"))) %>% filter(iso3 %in% COUNTRIES)
 gdp <- gdp_raw %>% filter(na_item == "B1GQ", unit == "CLV10_EUR_HAB") %>% eu_geo() %>%
   transmute(iso3, year = TIME_PERIOD, gdp_pc = values)
 gdp <- bind_rows(gdp, uk_supp %>% filter(!is.na(gdp_pc)) %>% select(iso3, year, gdp_pc) %>% anti_join(gdp, by = c("iso3", "year")))
@@ -356,6 +354,9 @@ fig(exposure_panel %>% group_by(year) %>% summarise(value = sum(china_exports_va
 fig(cy %>% group_by(year) %>% summarise(value = sum(capacity_additions_mw) / 1e3), "fig1_1b_capacity.pdf")
 
 # --- Chapter 3: in-text numbers ---------------------------------------------
+# share of firms with at least one positive value (ORBIS stores missing as "n.a.")
+coverage <- function(cols) if (!length(cols)) NA else
+  round(100 * mean(rowSums(sapply(orbis[cols], function(x) coalesce(suppressWarnings(as.numeric(x)) > 0, FALSE))) > 0))
 show(tibble(
   item = c("LED share of Chinese 854140 imports, 2010-2012 (%)",
            "Manufacturers (firms)", "Installers (firms)",
@@ -368,8 +369,7 @@ show(tibble(
             with(filter(exit_data, is_installer_primary), n_distinct(firm_name, iso3)),
             n_inactive_no_date, n_no_incorp, n_incorp_after_exit,
             sum(fs$is_imputed, na.rm = TRUE), nrow(fs),
-            round(100 * mean(rowSums(!is.na(orbis[emp_cols])) > 0), 0),
-            if (length(rev_cols)) round(100 * mean(rowSums(!is.na(orbis[rev_cols])) > 0), 0) else NA)),
+            coverage(emp_cols), coverage(rev_cols))),
   "Chapter 3 in-text numbers")
 show(fs %>% filter(is_imputed) %>% count(iso3, name = "imputed_years"), "Chapter 3 imputed production by country")
 
@@ -464,14 +464,15 @@ cy_c <- filter(cy, !is.na(gdp_pc), !is.na(electricity_price), !is.na(renewable_s
 m_ctrl <- did(cy_c, "capacity_additions_mw", " + gdp_pc + electricity_price + renewable_share_pct")
 show(bind_rows(
   est(cy, "(1) Baseline", "capacity_additions_mw", 1),
-  tibble(spec = "(2) Controls", coef = coef(m_ctrl)[[1]], se = se(m_ctrl)[[1]], p_conv = pvalue(m_ctrl)[[1]],
+  tibble(spec = "(2) Controls", coef = coef(m_ctrl)[["exposure:post_2018"]], se = se(m_ctrl)[["exposure:post_2018"]],
+         p_conv = pvalue(m_ctrl)[["exposure:post_2018"]],
          p_boot = boot_p(cy_c, "capacity_additions_mw"), n = nobs(m_ctrl)),   # as in thesis: bootstrap of the no-controls model on the controls sample
   est(filter(cy, iso3 != "NLD"), "(3) Excl. NL", "capacity_additions_mw", 1),
   est(filter(cy, !iso3 %in% c("NLD","BEL")), "(4) Excl. NL, BE", "capacity_additions_mw", 1),
   est(filter(cy, year >= 2013), "(5) From 2013", "capacity_additions_mw", 1),
   est(filter(cy, year >= 2013, iso3 != "NLD"), "(6) From 2013, excl. NL", "capacity_additions_mw", 1)) %>%
     select(-mean_y), "Table 5.4 Deployment")
-show(enframe(coef(m_ctrl)[-1], "control", "coef") %>% mutate(se = se(m_ctrl)[-1]), "Table 5.4 control coefficients")
+show(tibble(term = names(coef(m_ctrl)), coef = coef(m_ctrl), se = se(m_ctrl)), "Table 5.4 control coefficients")
 
 # --- Table 5.5: market concentration ----------------------------------------
 shares_cy <- function(e) e %>% group_by(iso3, year) %>% filter(n() >= 3) %>%
