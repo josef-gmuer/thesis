@@ -44,4 +44,4 @@ Eurostat and Comtrade revise their data, so a new download may differ slightly f
 
 ## Running
 
-Set the working directory to the folder containing `analysis.R` and run `source("analysis.R")`. Most of the runtime (roughly 30–60 minutes) is spent on the wild cluster bootstraps and randomization inference; set `B_BOOT` and `N_PERM` lower at the top of the script for a quick run.
+Set the working directory to the folder containing `analysis.R` and run `source("analysis.R")`. Set `B_BOOT` and `N_PERM` lower at the top of the script for a quick run.
