@@ -355,15 +355,20 @@ fig(cy %>% group_by(year) %>% summarise(value = sum(capacity_additions_mw) / 1e3
 
 # --- Chapter 3: in-text numbers ---------------------------------------------
 # share of firms with at least one positive value (ORBIS stores missing as "n.a.")
-coverage <- function(cols) if (!length(cols)) NA else
-  round(100 * mean(rowSums(sapply(orbis[cols], function(x) coalesce(suppressWarnings(as.numeric(x)) > 0, FALSE))) > 0))
+# computed over the firms in the estimation sample, 2012-2024 columns only
+panel_orbis <- semi_join(orbis, distinct(exit_data, firm_name, iso3), by = c("firm_name", "iso3"))
+coverage <- function(cols) {
+  cols <- cols[as.integer(str_extract(cols, "\\d{4}")) %in% EXIT_START:END]
+  if (!length(cols)) return(NA)
+  round(100 * mean(rowSums(sapply(panel_orbis[cols], function(x) coalesce(suppressWarnings(as.numeric(x)) > 0, FALSE))) > 0))
+}
 show(tibble(
   item = c("LED share of Chinese 854140 imports, 2010-2012 (%)",
            "Manufacturers (firms)", "Installers (firms)",
            "Inactive firms with no status date (dropped)",
            "Firms with no incorporation date", "Firms dropped: incorporation after exit",
            "Production imputed (country-years)", "Country-years in first-stage sample",
-           "Firms with any employment data (%)", "Firms with any revenue data (%)"),
+           "Sample firms with employment data, 2012-2024 (%)", "Sample firms with revenue data, 2012-2024 (%)"),
   value = c(round(100 * sum(led_raw$OBS_VALUE[as.character(led_raw$product) == "85414010"]) / sum(led_raw$OBS_VALUE), 1),
             with(filter(exit_data, !is_installer_primary), n_distinct(firm_name, iso3)),
             with(filter(exit_data, is_installer_primary), n_distinct(firm_name, iso3)),
@@ -383,8 +388,8 @@ show(exit_data %>% group_by(iso3) %>%
 # --- Table 5.1: first stage --------------------------------------------------
 fs_spec <- list(All = fs, `Excl. NL` = filter(fs, iso3 != "NLD"), `Excl. NL, BE` = filter(fs, !iso3 %in% c("NLD","BEL")))
 show(bind_rows(lapply(c("usd_m", "usd_pc"), function(y) bind_rows(lapply(names(fs_spec), function(nm)
-  est(fs_spec[[nm]], paste(y, nm), y = y, scale = 1) %>% mutate(countries = n_distinct(fs_spec[[nm]]$iso3)))))) %>%
-    select(-mean_y), "Table 5.1 First stage")
+       est(fs_spec[[nm]], paste(y, nm), y = y, scale = 1) %>% mutate(countries = n_distinct(fs_spec[[nm]]$iso3)))))) %>%
+       select(-mean_y), "Table 5.1 First stage")
 med_exp <- median(exposure$exposure)
 grp <- fs %>% mutate(high = exposure > med_exp)
 show(tibble(
@@ -455,9 +460,9 @@ show(bind_rows(
 # --- Table A.8: bootstrap CIs and implied effect sizes ----------------------
 gap <- round(exposure$exposure[exposure$iso3 == "ESP"], 1) - round(exposure$exposure[exposure$iso3 == "DEU"], 1)
 show(bind_rows(main, no_nl, from13, from13nl) %>%
-       mutate(across(c(coef, ci_lo, ci_hi), ~ gap * .x / 1e5 * 100, .names = "pp_{.col}"),       # pp change, Germany-Spain gap
-              across(c(pp_coef, pp_ci_lo, pp_ci_hi), ~ 100 * .x / mean_y, .names = "rel_{.col}")), # % of mean exit rate
-     "Table A.8 Bootstrap CIs and effect sizes")
+    mutate(across(c(coef, ci_lo, ci_hi), ~ gap * .x / 1e5 * 100, .names = "pp_{.col}"),       # pp change, Germany-Spain gap
+           across(c(pp_coef, pp_ci_lo, pp_ci_hi), ~ 100 * .x / mean_y, .names = "rel_{.col}")), # % of mean exit rate
+  "Table A.8 Bootstrap CIs and effect sizes")
 
 # --- Table 5.4: deployment ---------------------------------------------------
 cy_c <- filter(cy, !is.na(gdp_pc), !is.na(electricity_price), !is.na(renewable_share_pct))
