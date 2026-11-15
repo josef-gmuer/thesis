@@ -1,12 +1,12 @@
 # =============================================================================
-# Analysis code for:
+# Code for:
 #   "Removal of EU Trade Protection on Chinese Solar Panels:
 #    Firm Exit, Market Structure and Deployment"
 #   Josef Gmür, MA Thesis, University of St. Gallen
 #
 # Builds the data and produces every table, figure and in-text number in
 # the thesis. Run from this folder:  source("analysis.R")
-# See README.md for data sources, requirements and runtime.
+# See README.md
 # =============================================================================
 
 
