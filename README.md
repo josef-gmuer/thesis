@@ -33,8 +33,6 @@ Before running the script, enter the key in the R console:
 Sys.setenv(COMTRADE_API_KEY = "your-key-here")
 ```
 
-This sets the key for the current R session only, so it never appears in the code. To set it permanently, add the line `COMTRADE_API_KEY=your-key-here` to your `.Renviron` file (open it with `usethis::edit_r_environ()`) and restart R. Without a valid key, the Comtrade downloads stop with `HTTP 401 Unauthorized`.
-
 Two inputs cannot be downloaded:
 
 - `uk_manual_supplement.csv`: UK GDP per capita and renewable share, compiled from World Bank and UK government statistics (Section 3.3)
